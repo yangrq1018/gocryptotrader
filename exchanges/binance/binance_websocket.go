@@ -48,6 +48,7 @@ func (b *Binance) WsConnect() error {
 
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err = b.GetWsAuthStreamKey()
@@ -395,7 +396,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							b.Name,
 							err)
 					}
-
 					init, err := b.UpdateLocalBuffer(&depth)
 					if err != nil {
 						if init {
@@ -463,10 +463,10 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = b.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
-	newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
+	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -544,6 +544,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 	}
+
 	err := b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
@@ -632,8 +633,8 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 		return nil
 	}
 
-	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if recent == nil || (recent.Asks == nil && recent.Bids == nil) {
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
 		return b.obm.fetchBookViaREST(pair)
 	}
 
@@ -730,6 +731,13 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		}
 		m2[a] = state
 	}
+
+	if state.lastUpdateID != 0 && u.FirstUpdateID != state.lastUpdateID+1 {
+		// While listening to the stream, each new event's U should be
+		// equal to the previous event's u+1.
+		return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s", pair, a)
+	}
+	state.lastUpdateID = u.LastUpdateID
 
 	select {
 	// Put update in the channel buffer to be processed
@@ -887,12 +895,6 @@ func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (b
 				asset.Spot)
 		}
 		u.initialSync = false
-	} else if updt.FirstUpdateID != id {
-		// While listening to the stream, each new event's U should be
-		// equal to the previous event's u+1.
-		return false, fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
-			recent.Pair,
-			asset.Spot)
 	}
 	return true, nil
 }
