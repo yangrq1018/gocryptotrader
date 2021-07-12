@@ -23,6 +23,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	subaccount              = ""
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
@@ -55,6 +56,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.Subaccount = subaccount
 	f.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = f.Setup(exchCfg)
 	if err != nil {
@@ -74,6 +76,18 @@ func areTestAPIKeysSet() bool {
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := f.GetMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricalIndex(t *testing.T) {
+	t.Parallel()
+	_, err := f.GetHistoricalIndex("BTC", 3600, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalIndex("BTC", 3600, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -134,28 +148,28 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
 	// test empty market
-	_, err := f.GetHistoricalData("", "86400", "5", time.Time{}, time.Time{})
+	_, err := f.GetHistoricalData("", 86400, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty market should return an error")
 	}
 	// test empty resolution
-	_, err = f.GetHistoricalData(spotPair, "", "5", time.Time{}, time.Time{})
+	_, err = f.GetHistoricalData(spotPair, 0, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty resolution should return an error")
 	}
-	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
+	_, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	var o []OHLCVData
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(o) != 5 {
 		t.Error("limit of 5 should return 5 items")
 	}
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -310,10 +324,32 @@ func TestGetMarginMarketInfo(t *testing.T) {
 
 func TestGetMarginBorrowHistory(t *testing.T) {
 	t.Parallel()
+
+	tmNow := time.Now()
+	_, err := f.GetMarginBorrowHistory(tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginBorrowHistory()
+	_, err = f.GetMarginBorrowHistory(tmNow.AddDate(0, 0, -1), tmNow)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginMarketLendingHistory(t *testing.T) {
+	t.Parallel()
+
+	tmNow := time.Now()
+	_, err := f.GetMarginMarketLendingHistory(currency.USD, tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
+	_, err = f.GetMarginMarketLendingHistory(currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -321,10 +357,17 @@ func TestGetMarginBorrowHistory(t *testing.T) {
 
 func TestGetMarginLendingHistory(t *testing.T) {
 	t.Parallel()
+
+	tmNow := time.Now()
+	_, err := f.GetMarginLendingHistory(currency.USD, tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginLendingHistory()
+	_, err = f.GetMarginLendingHistory(currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -357,7 +400,7 @@ func TestSubmitLendingOffer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	if err := f.SubmitLendingOffer("bTc", 0.1, 500); err != nil {
+	if err := f.SubmitLendingOffer(currency.NewCode("bTc"), 0.1, 500); err != nil {
 		t.Error(err)
 	}
 }
@@ -367,7 +410,7 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchDepositAddress("tUsD")
+	_, err := f.FetchDepositAddress(currency.NewCode("tUsD"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -400,7 +443,7 @@ func TestWithdraw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.Withdraw("BtC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
+	_, err := f.Withdraw(currency.NewCode("bTc"), core.BitcoinDonationAddress, "", "", "957378", 0.0009)
 	if err != nil {
 		t.Error(err)
 	}
@@ -735,7 +778,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.CreateQuoteRequest(currency.BTC.String(), "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest(currency.BTC, "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -961,29 +1004,19 @@ func TestGetFee(t *testing.T) {
 	}
 	x.IsMaker = false
 	if areTestAPIKeysSet() {
-		a, err = f.GetFee(&x)
-		if err != nil {
+		if _, err = f.GetFee(&x); err != nil {
 			t.Error(err)
-		}
-		if a != 0.00865 {
-			t.Errorf("incorrect taker fee value")
 		}
 	}
 	x.FeeType = exchange.OfflineTradeFee
-	a, err = f.GetFee(&x)
+	_, err = f.GetFee(&x)
 	if err != nil {
 		t.Error(err)
-	}
-	if a != 0.007 {
-		t.Errorf("incorrect offline taker fee value")
 	}
 	x.IsMaker = true
-	a, err = f.GetFee(&x)
+	_, err = f.GetFee(&x)
 	if err != nil {
 		t.Error(err)
-	}
-	if a != 0.002 {
-		t.Errorf("incorrect offline maker fee value")
 	}
 }
 
@@ -1086,7 +1119,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 5)
+	end := start.AddDate(0, 0, 2)
 	_, err = f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
@@ -1100,8 +1133,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 5)
-	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneMin)
+	end := start.AddDate(0, 0, 2)
+	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1306,7 +1339,7 @@ func TestRequestForQuotes(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.RequestForQuotes("BtC", "UsD", 0.5)
+	_, err := f.RequestForQuotes(currency.NewCode("BtC"), currency.NewCode("UsD"), 0.5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1332,11 +1365,6 @@ func TestGetHistoricTrades(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
-		if err != nil {
-			t.Error(err)
-		}
-		// longer term
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*60*310), time.Now().Add(-time.Minute*60*300))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1570,6 +1598,83 @@ func TestSubaccountTransfer(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
 	_, err := f.SubaccountTransfer(currency.BTC, "", "test", 0.1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetStakes(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err := f.GetStakes()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUnstakeRequests(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err := f.GetUnstakeRequests()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetStakeBalances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err := f.GetStakeBalances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnstakeRequest(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	r, err := f.UnstakeRequest(currency.FTT, 0.1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	success, err := f.CancelUnstakeRequest(r.ID)
+	if err != nil || !success {
+		t.Errorf("unable to cancel unstaking request: %s", err)
+	}
+}
+
+func TestCancelUnstakeRequest(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	_, err := f.CancelUnstakeRequest(74351)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetStakingRewards(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err := f.GetStakingRewards()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStakeRequest(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+
+	// WARNING: This will lock up your funds for 14 days
+	_, err := f.StakeRequest(currency.FTT, 0.1)
 	if err != nil {
 		t.Error(err)
 	}

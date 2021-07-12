@@ -542,7 +542,6 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
@@ -570,7 +569,6 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
@@ -605,7 +603,6 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
@@ -849,7 +846,10 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -883,9 +883,10 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

@@ -673,7 +673,6 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*with
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	if withdrawRequest.Currency != currency.AUD {
 		return nil, errors.New("only aud is supported for withdrawals")
 	}
@@ -695,7 +694,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*with
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -977,7 +976,10 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	for x := range dates.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(fPair.String(),
@@ -1019,9 +1021,10 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		}
 	}
 
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

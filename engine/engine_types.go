@@ -20,6 +20,7 @@ type Settings struct {
 	EnableAllPairs              bool
 	EnableCoinmarketcapAnalysis bool
 	EnablePortfolioManager      bool
+	EnableDataHistoryManager    bool
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
@@ -52,6 +53,7 @@ type Settings struct {
 	EnableCurrencyLayer     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
+	EnableExchangeRateHost  bool
 
 	// Exchange tuning settings
 	EnableExchangeHTTPRateLimiter  bool
@@ -95,6 +97,8 @@ const (
 	MsgStatusSuccess string = "success"
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
+	grpcName       string = "grpc"
+	grpcProxyName  string = "grpc_proxy"
 )
 
 // newConfigMutex only locks and unlocks on engine creation functions

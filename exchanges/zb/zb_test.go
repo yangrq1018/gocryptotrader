@@ -2,6 +2,7 @@ package zb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -156,74 +157,58 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
 	}
-
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := z.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0.005) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.005), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if resp, err := z.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := z.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -944,11 +929,11 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestValidateCandlesRequest(t *testing.T) {
 	_, err := z.validateCandlesRequest(currency.Pair{}, "", time.Time{}, time.Time{}, kline.Interval(-1))
-	if err != nil && err.Error() != "invalid time range supplied. Start: 0001-01-01 00:00:00 +0000 UTC End 0001-01-01 00:00:00 +0000 UTC" {
+	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
 	_, err = z.validateCandlesRequest(currency.Pair{}, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
-	if err != nil && err.Error() != "invalid time range supplied. Start: 2020-01-01 01:01:01.000000001 +0000 UTC End 0001-01-01 00:00:00 +0000 UTC" {
+	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
 	_, err = z.validateCandlesRequest(currency.Pair{}, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)

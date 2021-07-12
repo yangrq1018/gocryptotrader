@@ -454,8 +454,8 @@ func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Ite
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (g *Gemini) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil && !errors.Is(err, common.ErrDateUnset) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = g.FormatExchangeCurrency(p, assetType)
@@ -613,7 +613,6 @@ func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	resp, err := g.WithdrawCrypto(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
@@ -629,13 +628,13 @@ func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (g *Gemini) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (g *Gemini) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

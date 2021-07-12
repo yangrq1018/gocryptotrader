@@ -66,7 +66,7 @@ func (b *Bitfinex) SetDefaults() {
 	}
 
 	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
@@ -524,7 +524,7 @@ func (b *Bitfinex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withd
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitfinex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -532,8 +532,8 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 	if assetType == asset.MarginFunding {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
@@ -730,7 +730,6 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
@@ -756,7 +755,6 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -779,7 +777,6 @@ func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	v, err := b.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
 		return nil, err
@@ -1028,7 +1025,10 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	cf, err := b.fixCasing(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -1054,9 +1054,10 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)
@@ -1066,10 +1067,10 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	var checkString [2]byte
-	if a == asset.Spot {
+	if a == asset.Spot || a == asset.Margin {
 		checkString[0] = 't'
 		checkString[1] = 'T'
-	} else if a == asset.Margin {
+	} else if a == asset.MarginFunding {
 		checkString[0] = 'f'
 		checkString[1] = 'F'
 	}

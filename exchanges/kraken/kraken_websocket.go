@@ -58,9 +58,12 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be
 // processed at a time
-var subscriptionChannelPair []WebsocketChannelData
-var authToken string
-var pingRequest = WebsocketBaseEventRequest{Event: stream.Ping}
+var (
+	subscriptionChannelPair []WebsocketChannelData
+	authToken               string
+	pingRequest             = WebsocketBaseEventRequest{Event: stream.Ping}
+	m                       sync.Mutex
+)
 
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
@@ -114,14 +117,12 @@ func (k *Kraken) WsConnect() error {
 					err)
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-				var authsubs []stream.ChannelSubscription
-				authsubs, err = k.GenerateAuthenticatedSubscriptions()
+				err = k.wsAuthPingHandler()
 				if err != nil {
-					return err
-				}
-				err = k.Websocket.SubscribeToChannels(authsubs)
-				if err != nil {
-					return err
+					log.Errorf(log.ExchangeSys,
+						"%v - failed setup ping handler for auth connection. Websocket may disconnect unexpectedly. %v\n",
+						k.Name,
+						err)
 				}
 			}
 		}
@@ -376,6 +377,20 @@ func (k *Kraken) wsPingHandler() error {
 	return nil
 }
 
+// wsAuthPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
+func (k *Kraken) wsAuthPingHandler() error {
+	message, err := json.Marshal(pingRequest)
+	if err != nil {
+		return err
+	}
+	k.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		Message:     message,
+		Delay:       krakenWsPingDelay,
+		MessageType: websocket.TextMessage,
+	})
+	return nil
+}
+
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
 func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 	if cID, ok := response[0].(float64); ok {
@@ -613,6 +628,8 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			return
 		}
 	}
+	m.Lock()
+	defer m.Unlock()
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
 		Pair:         fPair,
@@ -622,6 +639,8 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 
 // getSubscriptionChannelData retrieves WebsocketChannelData based on response ID
 func getSubscriptionChannelData(id int64) (WebsocketChannelData, error) {
+	m.Lock()
+	defer m.Unlock()
 	for i := range subscriptionChannelPair {
 		if subscriptionChannelPair[i].ChannelID == nil {
 			continue
@@ -1127,18 +1146,12 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
-}
-
-// GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
-	for i := range authenticatedChannels {
-		params := make(map[string]interface{})
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
-			Channel: authenticatedChannels[i],
-			Params:  params,
-		})
+	if k.Websocket.CanUseAuthenticatedEndpoints() {
+		for i := range authenticatedChannels {
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authenticatedChannels[i],
+			})
+		}
 	}
 	return subscriptions, nil
 }
@@ -1179,7 +1192,7 @@ channels:
 		if !channelsToSubscribe[i].Currency.IsEmpty() {
 			outbound.Pairs = []string{channelsToSubscribe[i].Currency.String()}
 		}
-		if channelsToSubscribe[i].Params != nil {
+		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
 		}
 
@@ -1254,6 +1267,9 @@ channels:
 				Depth: depth,
 			},
 			RequestID: id,
+		}
+		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+			unsub.Subscription.Token = authToken
 		}
 		unsub.Channels = append(unsub.Channels, channelsToUnsubscribe[x])
 		unsubs = append(unsubs, unsub)

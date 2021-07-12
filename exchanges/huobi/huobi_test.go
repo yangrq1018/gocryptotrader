@@ -135,7 +135,7 @@ func TestFGetKlineData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FGetKlineData(cp, "5min", 5, time.Time{}, time.Time{})
+	_, err = h.FGetKlineData(cp, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -654,7 +654,8 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateTicker(t *testing.T) {
+func TestUpdateTickerSpot(t *testing.T) {
+	t.Parallel()
 	sp, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Error(err)
@@ -663,6 +664,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateTickerCMF(t *testing.T) {
+	t.Parallel()
 	cp1, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -671,6 +676,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateTickerFutures(t *testing.T) {
+	t.Parallel()
 	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
@@ -688,7 +697,7 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderbook(t *testing.T) {
+func TestUpdateOrderbookSpot(t *testing.T) {
 	t.Parallel()
 	sp, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
@@ -698,6 +707,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateOrderbookCMF(t *testing.T) {
+	t.Parallel()
 	cp1, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -706,6 +719,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateOrderbookFuture(t *testing.T) {
+	t.Parallel()
 	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
@@ -714,6 +731,21 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal("no tradable pairs")
 	}
 	cp2, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.UpdateOrderbook(cp2, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	tradablePairs, err = h.FetchTradablePairs(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Fatal("no tradable pairs")
+	}
+	cp2, err = currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
@@ -1535,7 +1567,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 1)
+	startTime := time.Now().Add(-time.Minute * 2)
 	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
@@ -1824,74 +1856,59 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := h.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := h.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

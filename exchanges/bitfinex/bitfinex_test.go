@@ -63,9 +63,27 @@ func TestMain(m *testing.M) {
 
 func TestGetV2MarginFunding(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2MarginInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys are not set or invalid")
+	}
+	_, err := b.GetV2MarginInfo("base")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetV2MarginInfo("tBTCUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetV2MarginInfo("sym_all")
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +92,7 @@ func TestGetV2MarginFunding(t *testing.T) {
 func TestGetAccountInfoV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetAccountInfoV2()
 	if err != nil {
@@ -84,9 +102,9 @@ func TestGetAccountInfoV2(t *testing.T) {
 
 func TestGetV2FundingInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
-	_, err := b.GetV2FundingInfo("fUSD")
+	_, err := b.GetV2FundingInfo("fUST")
 	if err != nil {
 		t.Error(err)
 	}
@@ -95,7 +113,7 @@ func TestGetV2FundingInfo(t *testing.T) {
 func TestGetV2Balances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2Balances()
 	if err != nil {
@@ -103,9 +121,9 @@ func TestGetV2Balances(t *testing.T) {
 	}
 }
 
-func TestGetDerivativeData(t *testing.T) {
+func TestGetDerivativeStatusInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
+	_, err := b.GetDerivativeStatusInfo("ALL", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,6 +220,11 @@ func TestGetOrderbook(t *testing.T) {
 	}
 
 	_, err = b.GetOrderbook("fUSD", "P0", 1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetOrderbook("tLINK:UST", "P0", 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -711,50 +734,44 @@ func TestGetFee(t *testing.T) {
 
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
+		if _, err := b.GetFee(feeBuilder); err != nil {
 			t.Error(err)
-			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if resp, err := b.GetFee(feeBuilder); resp != float64(2000) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2000), resp)
+		if _, err := b.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+		if _, err := b.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		if _, err := b.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyWithdrawalFee Basic
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0.0004) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0004), resp)
+		if _, err := b.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
 
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -762,8 +779,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -771,8 +787,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -1152,7 +1167,6 @@ func TestWsNewOffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 }
 
 // TestWsCancelOffer dials websocket, sends cancel offer request.
@@ -1167,7 +1181,6 @@ func TestWsCancelOffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 }
 
 func TestConvertSymbolToDepositMethod(t *testing.T) {
@@ -1298,7 +1311,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	endTime := time.Now().Add(-time.Hour * 20)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1315,12 +1329,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	endTime := time.Now().Add(-time.Hour * 20)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneMin*1337)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -1371,7 +1386,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ret != "fBTCUSD" {
+	if ret != "tBTC:USD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
 	pair, err = currency.NewPairFromString("BTCUSD")
@@ -1423,7 +1438,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1434,7 +1449,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1446,7 +1461,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}

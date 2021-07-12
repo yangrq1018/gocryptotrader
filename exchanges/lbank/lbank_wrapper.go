@@ -356,13 +356,13 @@ func (l *Lbank) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdraw
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return l.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = l.FormatExchangeCurrency(p, assetType)
@@ -609,7 +609,6 @@ func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	resp, err := l.Withdraw(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(),
 		strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "",
 		withdrawRequest.Description, "")
@@ -623,13 +622,13 @@ func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *Lbank) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *Lbank) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *Lbank) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -938,7 +937,10 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	formattedPair, err := l.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -968,9 +970,10 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		}
 	}
 
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", l.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", l.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

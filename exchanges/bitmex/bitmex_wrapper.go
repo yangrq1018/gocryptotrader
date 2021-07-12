@@ -453,7 +453,7 @@ func (b *Bitmex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdra
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -461,8 +461,8 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if assetType == asset.Index {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
@@ -652,18 +652,17 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
-	var request = UserRequestWithdrawalParams{
+	var r = UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
 		Currency: withdrawRequest.Currency.String(),
 		OtpToken: withdrawRequest.OneTimePassword,
 	}
 	if withdrawRequest.Crypto.FeeAmount > 0 {
-		request.Fee = withdrawRequest.Crypto.FeeAmount
+		r.Fee = withdrawRequest.Crypto.FeeAmount
 	}
 
-	resp, err := b.UserRequestWithdrawal(request)
+	resp, err := b.UserRequestWithdrawal(r)
 	if err != nil {
 		return nil, err
 	}
@@ -676,13 +675,13 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Bitmex) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Bitmex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

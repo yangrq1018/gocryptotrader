@@ -25,8 +25,6 @@ const (
 const (
 	// ErrStrAmountMustBeGreaterThanZero message to return when requested amount is less than 0
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
-	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
-	ErrStrAddressisInvalid = "address is not valid"
 	// ErrStrAddressNotSet message to return when address is empty
 	ErrStrAddressNotSet = "address cannot be empty"
 	// ErrStrNoCurrencySet message to return when no currency is set
@@ -37,10 +35,6 @@ const (
 	ErrStrCurrencyNotFiat = "requested currency is not fiat"
 	// ErrStrFeeCannotBeNegative message to return when fee amount is negative
 	ErrStrFeeCannotBeNegative = "fee amount cannot be negative"
-	// ErrStrAddressNotWhiteListed message to return when attempting to withdraw to non-whitelisted address
-	ErrStrAddressNotWhiteListed = "address is not whitelisted for withdrawals"
-	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
-	ErrStrExchangeNotSupportedByAddress = "address is not supported by exchange"
 )
 
 var (
@@ -50,6 +44,10 @@ var (
 	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
+	// ErrStrAddressNotWhiteListed occurs when a withdrawal attempts to withdraw from a non-whitelisted address
+	ErrStrAddressNotWhiteListed = errors.New("address is not whitelisted for withdrawals")
+	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
+	ErrStrExchangeNotSupportedByAddress = errors.New("address is not supported by exchange")
 	// CacheSize cache size to use for withdrawal request history
 	CacheSize uint64 = 25
 	// Cache LRU cache for recent requests

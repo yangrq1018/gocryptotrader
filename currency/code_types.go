@@ -1540,7 +1540,9 @@ var (
 	PDX        = NewCode("PDX")
 	SLT        = NewCode("SLT")
 	HPY        = NewCode("HPY")
+	XXRP       = NewCode("XXRP") // XRP
 	XXBT       = NewCode("XXBT") // BTC, but XXBT instead
+	XXDG       = NewCode("XXDG") // DOGE
 	XDG        = NewCode("XDG")  // DOGE
 	HKD        = NewCode("HKD")  // Hong Kong Dollar
 	AUD        = NewCode("AUD")  // Australian Dollar
@@ -1661,4 +1663,6 @@ var (
 	CRV        = NewCode("CRV")
 	OXT        = NewCode("OXT")
 	BUSD       = NewCode("BUSD")
+	SRM        = NewCode("SRM")
+	FTT        = NewCode("FTT")
 )
