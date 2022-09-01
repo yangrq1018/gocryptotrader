@@ -1196,7 +1196,7 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 				assets = append(assets, asset.Spot)
 			case "MARGIN":
 				assets = append(assets, asset.Margin)
-			case "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004": // unused permissions
+			case "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005": // unused permissions
 			default:
 				return nil, fmt.Errorf("unhandled asset type for exchange limits loading %s",
 					spot.Symbols[x].Permissions[y])
