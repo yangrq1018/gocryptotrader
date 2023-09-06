@@ -512,6 +512,11 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 	var offset int
 	for x := range h.Ranges {
+		// skip ranges that are before or equal to incoming[0]
+		if h.Ranges[x].End.Time.Before(incoming[0].Time) ||
+			h.Ranges[x].End.Time.Equal(incoming[0].Time) {
+			continue
+		}
 		for y := range h.Ranges[x].Intervals {
 			if offset >= len(incoming) {
 				return nil
