@@ -40,12 +40,6 @@ func (d *Data) GenerateReport() error {
 			})
 		}
 	}
-	for i := range d.EnhancedCandles {
-		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
-			d.EnhancedCandles[i].IsOverLimit = true
-			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
-		}
-	}
 
 	if d.Statistics.FundingStatistics != nil {
 		d.HoldingsOverTimeChart, err = createHoldingsOverTimeChart(d.Statistics.FundingStatistics.Items)
