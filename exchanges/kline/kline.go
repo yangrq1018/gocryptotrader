@@ -379,8 +379,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 		if k.Candles[x].Open != 0 &&
 			k.Candles[x].High != 0 &&
 			k.Candles[x].Low != 0 &&
-			k.Candles[x].Close != 0 &&
-			k.Candles[x].Volume != 0 {
+			k.Candles[x].Close != 0 {
 			if candles[target].Time.IsZero() {
 				candles[target].Time = k.Candles[x].Time
 			}
