@@ -434,6 +434,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 	query := sqlite3.Datahistoryjobs(
 		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
 		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
+		qm.OrderBy("nickname"),
 		qm.Where("status = ?", 0))
 	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
