@@ -192,9 +192,11 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
-			if err != nil {
-				return err
+			if candles != nil {
+				err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+				if err != nil {
+					return err
+				}
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
@@ -216,6 +218,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
+			if candles == nil {
+				break
+			}
 			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 			if err != nil {
 				return err
@@ -236,7 +241,7 @@ func (m *DataHistoryManager) run() {
 			case <-m.interval.C:
 				if m.databaseConnectionInstance != nil && m.databaseConnectionInstance.IsConnected() {
 					go func() {
-						if err := m.runJobs(); err != nil {
+						if err := m.runJobs(); err != nil && !errors.Is(err, errAlreadyRunning) {
 							log.Errorln(log.DataHistory, err)
 						}
 					}()
@@ -482,6 +487,12 @@ completionCheck:
 			case dataHistoryStatusComplete:
 				allResultsFailed = false
 				break results
+			case dataHistoryStatusFailed:
+				// only check the latest result
+				if j == len(result)-1 {
+					completed = false
+					break completionCheck
+				}
 			default:
 				completed = false
 				break completionCheck
@@ -889,7 +900,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	newCandles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, candles, r)
+	err = m.saveCandlesInBatches(job, newCandles, r)
 	return r, err
 }
 
@@ -1120,8 +1131,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if err != nil && !errors.Is(err, errJobNotFound) {
 		return err
 	}
-	if insertOnly && j != nil ||
-		(j != nil && j.Status != dataHistoryStatusActive) {
+	if insertOnly && j != nil {
 		return fmt.Errorf("upsert job %w nickname: %s - status: %s ", errNicknameInUse, j.Nickname, j.Status)
 	}
 	if job.PrerequisiteJobNickname != "" {
