@@ -186,12 +186,6 @@ func (c *Config) validateCurrencySettings() error {
 					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.IsZero() {
 					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
 				}
-				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
-				}
-				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
-				}
 			}
 		}
 		if c.CurrencySettings[i].Base.IsEmpty() {
