@@ -1084,6 +1084,63 @@ func TestConvertToNewInterval(t *testing.T) {
 	if len(newCandle.Candles) != 3 {
 		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 3)
 	}
+
+	// Test squash zero volume candles
+	tn = time.Now().Truncate(time.Duration(OneMin))
+	old.Interval = OneMin
+	old.Candles = []Candle{
+		{
+			Time:   tn,
+			Open:   11177,
+			High:   11177,
+			Low:    11177,
+			Close:  11177,
+			Volume: 0,
+		},
+		{
+			Time:   tn.Add(time.Duration(OneMin)),
+			Open:   11177,
+			High:   11177,
+			Low:    11177,
+			Close:  11177,
+			Volume: 0,
+		},
+		{
+			Time:   tn.Add(time.Duration(2 * OneMin)),
+			Open:   11177,
+			High:   11177,
+			Low:    11177,
+			Close:  11177,
+			Volume: 0,
+		},
+		{
+			Time:   tn.Add(time.Duration(3 * OneMin)),
+			Open:   11177,
+			High:   11177,
+			Low:    11177,
+			Close:  11177,
+			Volume: 0,
+		},
+		{
+			Time:   tn.Add(time.Duration(4 * OneMin)),
+			Open:   11177,
+			High:   11177,
+			Low:    11177,
+			Close:  11177,
+			Volume: 0,
+		},
+	}
+	newCandle, err = old.ConvertToNewInterval(FiveMin)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(newCandle.Candles) != 1 {
+		t.Errorf("expected len(newCandle.Candles) = %v, got %v", 1, len(newCandle.Candles))
+	} else {
+		if newCandle.Candles[0].Time.IsZero() {
+			t.Errorf("got zero timestamp in newCandle")
+		}
+	}
 }
 
 func TestAddPadding(t *testing.T) {
