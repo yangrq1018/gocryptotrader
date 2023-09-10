@@ -1905,7 +1905,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 		stepIncr := 0.1
 		if a == asset.Options {
-			stepIncr = 0.0005
+			stepIncr = 0.0001
 		}
 
 		tests[a] = []limitTest{{pairs[0], stepIncr, 1}}
