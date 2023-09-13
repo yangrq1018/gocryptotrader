@@ -22,6 +22,7 @@ type Holding struct {
 	Asset             asset.Item      `json:"asset"`
 	Exchange          string          `json:"exchange"`
 	Timestamp         time.Time       `json:"timestamp"`
+	ValuationTime     time.Time       `json:"value-time"`
 	BaseInitialFunds  decimal.Decimal `json:"base-initial-funds"`
 	BaseSize          decimal.Decimal `json:"base-size"`
 	BaseValue         decimal.Decimal `json:"base-value"`

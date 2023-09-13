@@ -2,6 +2,7 @@ package holdings
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -75,7 +76,7 @@ func (h *Holding) UpdateValue(d common.Event) error {
 	h.Timestamp = d.GetTime()
 	latest := d.GetClosePrice()
 	h.Offset = d.GetOffset()
-	h.scaleValuesToCurrentPrice(latest)
+	h.scaleValuesToCurrentPrice(latest, d.GetTime())
 	return nil
 }
 
@@ -83,7 +84,7 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	direction := e.GetDirection()
 	o := e.GetOrder()
 	if o == nil {
-		h.scaleValuesToCurrentPrice(e.GetClosePrice())
+		h.scaleValuesToCurrentPrice(e.GetClosePrice(), e.GetTime())
 		return nil
 	}
 	amount := decimal.NewFromFloat(o.Amount)
@@ -133,11 +134,11 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	if !e.GetClosePrice().Equal(e.GetPurchasePrice()) && !e.GetPurchasePrice().IsZero() {
 		h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetClosePrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
 	}
-	h.scaleValuesToCurrentPrice(e.GetClosePrice())
+	h.scaleValuesToCurrentPrice(e.GetClosePrice(), e.GetTime())
 	return nil
 }
 
-func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal) {
+func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal, valuationTime time.Time) {
 	origPosValue := h.BaseValue
 	origTotalValue := h.TotalValue
 	h.BaseValue = h.BaseSize.Mul(currentPrice)
@@ -146,7 +147,8 @@ func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal) {
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)
 	h.PositionsValueDifference = h.BaseValue.Sub(origPosValue)
 
-	if !origTotalValue.IsZero() {
+	if !origTotalValue.IsZero() && valuationTime.After(h.ValuationTime) {
+		h.ValuationTime = valuationTime
 		h.ChangeInTotalValuePercent = h.TotalValue.Sub(origTotalValue).Div(origTotalValue)
 	}
 }
