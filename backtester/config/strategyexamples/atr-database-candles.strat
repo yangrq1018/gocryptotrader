@@ -1,0 +1,89 @@
+{
+  "nickname": "TestGenerateATRCandleAPICustomSettingsStrat",
+  "goal": "To demonstrate the ATR strategy using database candle data and custom settings",
+  "strategy-settings": {
+    "name": "atr",
+    "use-simultaneous-signal-processing": false,
+    "disable-usd-tracking": false,
+    "custom-settings": {
+      "atr-period": 14,
+      "central-track-period": 25,
+      "track-multiplier": 1.0
+    }
+  },
+  "funding-settings": {
+    "use-exchange-level-funding": false
+  },
+  "currency-settings": [
+    {
+      "exchange-name": "okx",
+      "asset": "spot",
+      "base": "BTC",
+      "quote": "USDT",
+      "spot-details": {
+        "initial-quote-funds": "100000"
+      },
+      "buy-side": {
+        "minimum-size": "0.005",
+        "maximum-size": "2",
+        "maximum-total": "20000"
+      },
+      "sell-side": {
+        "minimum-size": "0.005",
+        "maximum-size": "2",
+        "maximum-total": "20000"
+      },
+      "min-slippage-percent": "0",
+      "max-slippage-percent": "0",
+      "maker-fee-override": "0.0002",
+      "taker-fee-override": "0.0007",
+      "maximum-holdings-ratio": "0",
+      "skip-candle-volume-fitting": false,
+      "use-exchange-order-limits": false,
+      "use-exchange-pnl-calculation": false
+    }
+  ],
+  "data-settings": {
+    "interval": 300000000000,
+    "data-type": "candle",
+    "verbose-exchange-requests": false,
+    "database-data": {
+      "start-date": "2022-01-01T00:00:00Z",
+      "end-date": "2023-09-01T00:00:00Z",
+      "config": {
+        "enabled": true,
+        "verbose": false,
+        "driver": "sqlite",
+        "connectionDetails": {
+          "host": "localhost",
+          "port": 0,
+          "username": "",
+          "password": "",
+          "database": "history",
+          "sslmode": ""
+        }
+      }
+    }
+  },
+  "portfolio-settings": {
+    "leverage": {
+      "can-use-leverage": false,
+      "maximum-orders-with-leverage-ratio": "0",
+      "maximum-leverage-rate": "0",
+      "maximum-collateral-leverage-rate": "0"
+    },
+    "buy-side": {
+      "minimum-size": "0.005",
+      "maximum-size": "2",
+      "maximum-total": "20000"
+    },
+    "sell-side": {
+      "minimum-size": "0.005",
+      "maximum-size": "2",
+      "maximum-total": "20000"
+    }
+  },
+  "statistic-settings": {
+    "risk-free-rate": "0.03"
+  }
+}

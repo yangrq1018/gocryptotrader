@@ -2,6 +2,7 @@ package strategies
 
 import (
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/atr"
 	"reflect"
 	"strings"
 	"sync"
@@ -100,5 +101,6 @@ var (
 		new(rsi.Strategy),
 		new(top2bottom2.Strategy),
 		new(binancecashandcarry.Strategy),
+		new(atr.Strategy),
 	}
 )
