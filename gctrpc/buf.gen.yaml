@@ -15,3 +15,9 @@ plugins:
       - generate_unbound_methods=true
   - name: openapiv2
     out: ./
+  - plugin: buf.build/grpc/python:v1.57.0
+    out: py
+  - plugin: buf.build/protocolbuffers/python
+    out: py
+  - plugin: buf.build/protocolbuffers/pyi:v24.2
+    out: py
