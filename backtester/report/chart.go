@@ -20,7 +20,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 		return nil, fmt.Errorf("%w missing funding item statistics", gctcommon.ErrNilPointer)
 	}
 	response := &Chart{
-		AxisType: "logarithmic",
+		AxisType: "linear",
 	}
 	usdTotalChartPlot := make([]LinePlot, len(items))
 	for i := range items {
