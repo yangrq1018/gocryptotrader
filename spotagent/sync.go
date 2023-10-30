@@ -59,7 +59,7 @@ func (s *Trans) Handle(service string, data interface{}) error {
 		market := builder.CreateString("OKX")
 		code := builder.CreateString(d.Pair.String())
 		name := builder.CreateString(d.Pair.String())
-		dt := builder.CreateString(d.LastUpdated.String())
+		dt := builder.CreateString(d.LastUpdated.Format("2006-01-02 15:04:05.000"))
 		flat.SpotStart(builder)
 		flat.SpotAddMarket(builder, market)
 		flat.SpotAddCode(builder, code)
