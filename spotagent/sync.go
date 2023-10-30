@@ -6,8 +6,9 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/hikyuu/flat"
-	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/req"
+	"go.nanomsg.org/mangos/v3"
+	"go.nanomsg.org/mangos/v3/protocol/req"
+	_ "go.nanomsg.org/mangos/v3/transport/ipc"
 )
 
 type Trans struct {
@@ -20,7 +21,7 @@ func (s *Trans) CreateSocket() error {
 	if err != nil {
 		return err
 	}
-	err = sock.Listen("ipc://hikyuu_real_pub.ipc")
+	err = sock.Listen("ipc:///tmp/hikyuu_real_pub.ipc")
 	if err != nil {
 		return err
 	}
@@ -38,11 +39,16 @@ func (s *Trans) Handle(service string, data interface{}) error {
 		fmt.Println(d.LastUpdated)
 		builder := flatbuffers.NewBuilder(1024)
 
+		// strings must be created before the start of the table they are referenced in
+		market := builder.CreateString("OKX")
+		code := builder.CreateString(d.Pair.String())
+		name := builder.CreateString(d.Pair.String())
+		dt := builder.CreateString(d.LastUpdated.String())
 		flat.SpotStart(builder)
-		flat.SpotAddMarket(builder, builder.CreateString("OKX"))
-		flat.SpotAddCode(builder, builder.CreateString(d.Pair.String()))
-		flat.SpotAddName(builder, builder.CreateString(d.Pair.String()))
-		flat.SpotAddDatetime(builder, builder.CreateString(d.LastUpdated.String()))
+		flat.SpotAddMarket(builder, market)
+		flat.SpotAddCode(builder, code)
+		flat.SpotAddName(builder, name)
+		flat.SpotAddDatetime(builder, dt)
 		// flat.SpotAddYesterdayClose(builder, d.Close)
 		flat.SpotAddOpen(builder, d.Open)
 		flat.SpotAddHigh(builder, d.High)
