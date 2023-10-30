@@ -2,26 +2,35 @@ package spotagent
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/hikyuu/flat"
 	"go.nanomsg.org/mangos/v3"
-	"go.nanomsg.org/mangos/v3/protocol/req"
-	_ "go.nanomsg.org/mangos/v3/transport/ipc"
+	"go.nanomsg.org/mangos/v3/protocol/pub"
+	_ "go.nanomsg.org/mangos/v3/transport/all"
 )
 
+const url = "ipc:///tmp/hikyuu_real_pub.ipc"
+
+// const url = "tcp://127.0.0.1:40899"
+
+var spotTopic = []byte(":spot:")
+var startSpotTopic = []byte(":spot:[start spot]")
+
 type Trans struct {
-	socket mangos.Socket
+	socket    mangos.Socket
+	sendCount atomic.Int64
 }
 
 func (s *Trans) CreateSocket() error {
 	var err error
-	sock, err := req.NewSocket()
+	sock, err := pub.NewSocket()
 	if err != nil {
 		return err
 	}
-	err = sock.Listen("ipc:///tmp/hikyuu_real_pub.ipc")
+	err = sock.Listen(url)
 	if err != nil {
 		return err
 	}
@@ -30,10 +39,17 @@ func (s *Trans) CreateSocket() error {
 }
 
 func (s *Trans) send(data []byte) error {
-	return s.socket.Send(data)
+	tmp := make([]byte, len(spotTopic)+len(data))
+	copy(tmp, spotTopic)
+	copy(tmp[len(spotTopic):], data)
+	return s.socket.Send(tmp)
+}
+func (s *Trans) sendStart() error {
+	return s.socket.Send(startSpotTopic)
 }
 
 func (s *Trans) Handle(service string, data interface{}) error {
+	s.sendCount.Add(1)
 	switch d := data.(type) {
 	case *ticker.Price:
 		fmt.Println(d.LastUpdated)
@@ -77,6 +93,9 @@ func (s *Trans) Handle(service string, data interface{}) error {
 		builder.Finish(spotList)
 
 		buf := builder.FinishedBytes()
+		if s.sendCount.Load()%100 == 0 {
+			s.sendStart()
+		}
 		err := s.send(buf)
 		if err != nil {
 			return err
