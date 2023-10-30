@@ -21,6 +21,7 @@ import (
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
+	"github.com/thrasher-corp/gocryptotrader/spotagent"
 )
 
 func main() {
@@ -150,6 +151,13 @@ func main() {
 		}
 		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
+
+	spotTrans := new(spotagent.Trans)
+	err = spotTrans.CreateSocket()
+	if err != nil {
+		log.Fatalf("Unable to create socket. Error: %s\n", err)
+	}
+	engine.Bot.RegisterWebsocketDataHandler(spotTrans.Handle, false)
 
 	go waitForInterrupt(settings.Shutdown)
 	<-settings.Shutdown
